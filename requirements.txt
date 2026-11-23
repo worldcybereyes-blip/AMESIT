@@ -1,0 +1,20 @@
+# AMESIT - pinned, Windows 10/11 compatible dependencies.
+# All packages ship pre-built Windows wheels (no compiler required).
+# Tested on CPython 3.10 - 3.13 (64-bit).  setup_and_run.bat automatically
+# retries with unpinned versions if a pin has no wheel for your Python.
+#
+# Optional extras (NOT required; AMESIT falls back automatically):
+#   spacy + en_core_web_sm   -> better named-entity extraction
+#   plotly                   -> alternative graph HTML if pyvis is missing
+
+numpy==2.2.6
+pandas==2.2.3
+scipy==1.15.3
+scikit-learn==1.6.1
+networkx==3.4.2
+matplotlib==3.10.3
+pyvis==0.3.2
+jinja2==3.1.6
+reportlab==4.4.1
+PyYAML==6.0.2
+vaderSentiment==3.3.2

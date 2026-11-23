@@ -1,0 +1,134 @@
+# =============================================================================
+# AMESIT - pipeline thresholds and configuration
+# Every value here can be overridden; any missing key falls back to the
+# default hard-coded in the corresponding module.
+# =============================================================================
+
+project:
+  name: "AMESIT - The Information Operations Engine"
+  version: "1.0.0"
+  random_seed: 1337
+
+paths:
+  input: "data/sample_io_campaign.json"   # .json | .jsonl | .csv | folder of CSVs
+  output_dir: "output"
+  docs_dir: "docs"
+
+# -----------------------------------------------------------------------------
+# 1. OSINT collection / normalisation
+# -----------------------------------------------------------------------------
+collector:
+  drop_duplicate_post_ids: true
+  min_text_length: 3
+  young_account_days: 90            # accounts younger than this (at first post) count as "young"
+  url_shorteners: [bit.ly, tinyurl.com, t.co, ow.ly, is.gd, buff.ly, cutt.ly, rebrand.ly, shrt.example]
+  tracking_params: [utm_source, utm_medium, utm_campaign, utm_term, utm_content,
+                    fbclid, gclid, igshid, mc_cid, mc_eid, ref, ref_src, src, share, s]
+  # bare (scheme-less) domains are only extracted for these TLDs to avoid false positives
+  bare_domain_tlds: [com, net, org, info, io, co, biz, news, online, site, example, test]
+  multi_part_suffixes: [co.uk, org.uk, ac.uk, com.au, co.in, co.jp, com.br, co.za, co.nz]
+
+# -----------------------------------------------------------------------------
+# 2. Content analysis (temporal bursts, copy-paste, coordination, infrastructure)
+# -----------------------------------------------------------------------------
+content_analysis:
+  burst:
+    bin_minutes: 15
+    baseline_bins: 96               # rolling baseline window (96 x 15 min = 24 h)
+    mad_floor: 1.0                  # floor for the MAD denominator (sparse series)
+    z_threshold: 3.5                # robust z-score needed to flag a bin
+    min_posts: 8                    # minimum posts in a merged burst
+    min_accounts: 6                 # minimum distinct accounts in a merged burst
+    merge_gap_bins: 3               # merge flagged bins separated by <= this many bins
+    pad_minutes: 15                 # pad each burst window when collecting its posts
+    narrative_scope_min_posts: 25   # run per-narrative detection on clusters this large
+  copy_paste:
+    shingle_size: 3                 # word n-gram size
+    min_tokens: 10                  # ignore very short posts ("good morning!")
+    jaccard_threshold: 0.50
+    min_accounts: 3
+    exclude_native_reposts: true
+  coordination:
+    text_similarity: 0.60           # tf-idf cosine => "same message"
+    semantic_similarity: 0.80       # LSA cosine => "same narrative, reworded"
+    max_lag_minutes: 30             # window for near-identical co-posting
+    semantic_lag_minutes: 240       # window for paraphrase co-posting
+    link_lag_minutes: 60            # window for sharing the same URL
+    repost_lag_minutes: 30          # window for reposting the same post
+    cascade_minutes: 360            # accounts posting in a burst's narrative within this window co-participate
+    cascade_min_share: 0.25         # a cluster must hold this share of a burst's posts to define its narrative
+    weights: {text: 1.0, link: 1.0, semantic: 0.35, repost: 0.5, cascade: 0.6}
+    min_pair_strength: 3.0          # weighted co-actions needed to draw an edge
+    min_community_size: 3
+    louvain_resolution: 1.0
+  infrastructure:
+    young_domain_days: 45           # domain age (at first share) considered "young"
+    registration_window_days: 7     # domains registered within N days of each other cluster together
+    lookalike_ratio: 0.62           # difflib ratio against long-established domains
+    established_domain_days: 730
+    min_shared_attributes: 2        # shared infra attributes needed to link two domains
+    risk_flag_threshold: 55         # domain risk score (0-100) at which a domain is flagged
+  burst_classification:
+    coordinated_threshold: 0.45     # burst coordination index at which a burst is "coordinated"
+  suspicion:
+    weights:
+      coordination: 3.0
+      duplicate_posts: 2.0
+      young_account: 1.5
+      follow_ratio: 1.0
+      handle_pattern: 0.75
+      default_avatar: 0.5
+      flagged_domains: 2.0
+      coordinated_bursts: 1.5
+      handle_changes: 1.0
+    young_account_days: 120
+    high_threshold: 70
+    medium_threshold: 50
+    low_threshold: 30
+  amplification:
+    narrative_min_posts: 20
+    narrative_min_accounts: 8
+    seed_window_minutes: 240
+
+# -----------------------------------------------------------------------------
+# 3. NLP
+# -----------------------------------------------------------------------------
+nlp:
+  sentiment_backend: auto           # auto | vader | lexicon
+  entity_backend: auto              # auto | spacy | regex
+  tfidf:
+    word_ngram: [1, 2]
+    min_df: 2
+    max_df: 0.60
+    max_features: 40000
+    char_ngram: [3, 5]
+    char_max_features: 60000
+  lsa_components: 80
+  clustering:
+    k_min: 6
+    k_max: 26
+    min_cluster_size: 8
+    silhouette_sample: 2500
+  keywords_per_cluster: 6
+
+# -----------------------------------------------------------------------------
+# 4. Relationship mapping
+# -----------------------------------------------------------------------------
+graph:
+  min_actor_score: 30               # include accounts with suspicion >= this
+  context_accounts: 20              # extra non-flagged accounts that interact with flagged ones
+  max_actor_nodes: 160
+  max_benign_domains: 8
+  physics: true
+  png_dpi: 160
+  layout_seed: 7
+
+# -----------------------------------------------------------------------------
+# Reporting
+# -----------------------------------------------------------------------------
+report:
+  classification: "TLP:CLEAR - SYNTHETIC DEMONSTRATION DATA"
+  analyst: "AMESIT automated analysis"
+  top_accounts: 25
+  top_domains: 12
+  regenerate_project_report: true   # rebuild docs/AMESIT_Project_Report.pdf with live results
